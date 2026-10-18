@@ -5,6 +5,7 @@ It is the starter project for the **GitHub Actions project tutorial**: you build
 **tests** every change, **builds** the site and **deploys** it to GitHub Pages, one step at a time.
 
 **Start here: [TUTORIAL.md](TUTORIAL.md)** walks you through the whole project, step by step.
+To see where you are heading, look at the finished example: https://codedev-david.github.io/learning-reviews-demo/
 
 ## Get your own copy
 
