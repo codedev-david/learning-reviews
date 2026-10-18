@@ -11,7 +11,8 @@ const LENGTHS = { title: [3, 120], creator: [2, 80], reviewer: [2, 40], review: 
 const FILE_NAME = /^[a-z0-9]+(-[a-z0-9]+)*\.json$/;
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const TAG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const PLACEHOLDER = /replace with|example\.com/i;
+// Every example value in tutorial/new-review.json starts with "Replace with", and its link is on example.com.
+const PLACEHOLDER = /^replace with\b/i;
 
 // Checks one review. Returns a list of problems ({ field, message }); an empty list means the review is fine.
 export function validateReview(review, { today = new Date() } = {}) {
@@ -45,7 +46,7 @@ export function validateReview(review, { today = new Date() } = {}) {
   if (present('url')) {
     if (!isHttpsUrl(review.url)) {
       problem('url', `"url" must be a full link that starts with https:// (found ${JSON.stringify(review.url)})`);
-    } else if (PLACEHOLDER.test(review.url)) {
+    } else if (/(^|\.)example\.com$/i.test(new URL(review.url).hostname)) {
       problem('url', '"url" still has the example link: use the real one');
     }
   }
@@ -104,16 +105,21 @@ export function lineOf(text, field) {
 export async function loadSite(root, { today = new Date() } = {}) {
   const problems = [];
   let site = null;
-  try {
-    site = JSON.parse(stripBom(await readFile(path.join(root, 'site.json'), 'utf8')));
-    for (const message of validateSite(site)) problems.push({ file: 'site.json', line: 1, message });
-  } catch (error) {
-    problems.push({ file: 'site.json', line: jsonErrorLine(error), message: `this is not valid JSON: ${error.message}` });
+  const siteText = await readText(path.join(root, 'site.json'));
+  if (siteText === null) {
+    problems.push({ file: 'site.json', line: 1, message: 'site.json is missing: it holds the site\'s title' });
+  } else {
+    try {
+      site = JSON.parse(siteText);
+      for (const message of validateSite(site)) problems.push({ file: 'site.json', line: 1, message });
+    } catch (error) {
+      problems.push({ file: 'site.json', line: jsonErrorLine(error), message: jsonMessage(error, siteText) });
+    }
   }
 
   const reviews = [];
   const seen = new Map();
-  for (const name of (await readdir(path.join(root, 'reviews'))).sort()) {
+  for (const name of await listReviews(path.join(root, 'reviews'))) {
     const file = `reviews/${name}`;
     if (!name.endsWith('.json')) {
       problems.push({ file, line: 1, message: 'only .json files belong in reviews/ (did your editor add .txt to the name?)' });
@@ -122,12 +128,12 @@ export async function loadSite(root, { today = new Date() } = {}) {
     if (!FILE_NAME.test(name)) {
       problems.push({ file, line: 1, message: 'the file name must use only lowercase letters, numbers and hyphens, like 2026-10-20-my-review.json' });
     }
-    const text = stripBom(await readFile(path.join(root, 'reviews', name), 'utf8'));
+    const text = await readText(path.join(root, 'reviews', name));
     let review;
     try {
       review = JSON.parse(text);
     } catch (error) {
-      problems.push({ file, line: jsonErrorLine(error), message: `this is not valid JSON: ${error.message}` });
+      problems.push({ file, line: jsonErrorLine(error), message: jsonMessage(error, text) });
       continue;
     }
     const found = validateReview(review, { today });
@@ -160,8 +166,31 @@ export function validateSite(site) {
   return problems;
 }
 
-function stripBom(text) {
-  return text.replace(/^\uFEFF/, '');
+// The file's text without a byte order mark (Notepad can add one), or null when the file does not exist.
+async function readText(file) {
+  try {
+    return (await readFile(file, 'utf8')).replace(/^\uFEFF/, '');
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+// The review files in name order. Git does not keep empty folders, so a missing reviews/ means no reviews yet.
+async function listReviews(dir) {
+  try {
+    return (await readdir(dir)).sort();
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+function jsonMessage(error, text) {
+  const curly = /[\u201C\u201D]/.test(text)
+    ? ' Your editor changed straight quotes (") into curly quotes (\u201C \u201D): retype them in a code editor.'
+    : '';
+  return `this is not valid JSON: ${error.message.replace(/\s+/g, ' ')}.${curly}`;
 }
 
 // Node.js reports where JSON breaks, for example "... (line 5 column 3)".

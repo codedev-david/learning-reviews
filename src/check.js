@@ -6,12 +6,16 @@ import { loadSite } from './reviews.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+// Workflow commands need these characters written as %-codes.
+const escapeData = (s) => String(s).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+const escapeProperty = (s) => escapeData(s).replace(/:/g, '%3A').replace(/,/g, '%2C');
+
 export function report(problems, env = process.env, log = console.log) {
   for (const { file, line, message } of problems) {
     log(`✗ ${file} (line ${line}): ${message}`);
     if (env.GITHUB_ACTIONS === 'true') {
       // A workflow command: GitHub shows it on the run page and next to the line in a pull request.
-      log(`::error file=${file},line=${line},title=Review check::${message.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A')}`);
+      log(`::error file=${escapeProperty(file)},line=${line},title=Review check::${escapeData(message)}`);
     }
   }
 }

@@ -60,6 +60,10 @@ describe('validateReview', () => {
     assert.match(messagesFor({ url: 'https://example.com/replace-with-the-real-link' })[0], /"url" still has the example link/);
   });
 
+  it('accepts "replace with" in the middle of a real review', () => {
+    assert.deepEqual(messagesFor({ review: 'Shows when to replace with a newer tool, and when not to.' }), []);
+  });
+
   it('rejects dates that are not real or are in the future', () => {
     assert.match(messagesFor({ date: '2026-02-30' })[0], /must be a real date written as YYYY-MM-DD/);
     assert.match(messagesFor({ date: '20/10/2026' })[0], /must be a real date/);
@@ -136,6 +140,31 @@ describe('loadSite', () => {
     assert.match(messages[0], /^reviews\/2026-10-02-b\.json: this is not valid JSON/);
     assert.match(messages[1], /^reviews\/My Review\.json: the file name must use only lowercase letters/);
     assert.match(messages[2], /^reviews\/notes\.txt: only \.json files belong in reviews\//);
+    await rm(root, { recursive: true });
+  });
+
+  it('explains curly quotes, which some editors type instead of straight ones', async () => {
+    const root = await folder({ '2026-10-01-a.json': '{\n  “title”: “Curly”\n}' });
+    const { problems } = await loadSite(root, { today: TODAY });
+    assert.equal(problems.length, 1);
+    assert.match(problems[0].message, /^this is not valid JSON: .*Your editor changed straight quotes/);
+    await rm(root, { recursive: true });
+  });
+
+  it('treats a missing reviews/ folder as no reviews yet', async () => {
+    const root = await folder({});
+    await rm(path.join(root, 'reviews'), { recursive: true });
+    const { reviews, problems } = await loadSite(root, { today: TODAY });
+    assert.deepEqual(reviews, []);
+    assert.deepEqual(problems, []);
+    await rm(root, { recursive: true });
+  });
+
+  it('says so when site.json is missing', async () => {
+    const root = await folder({});
+    await rm(path.join(root, 'site.json'));
+    const { problems } = await loadSite(root, { today: TODAY });
+    assert.deepEqual(problems, [{ file: 'site.json', line: 1, message: 'site.json is missing: it holds the site\'s title' }]);
     await rm(root, { recursive: true });
   });
 
