@@ -19,6 +19,7 @@ Make your own copy of a small website where you review the articles, books, vide
 
 ## Before you start
 
+- **What you need from the course: only this guide.** There is no zip to download. In step 1 you make your own copy of the starter repository, https://github.com/codedev-david/learning-reviews, and your copy holds every file the guide uses, in its `tutorial/` folder. The same steps are in two places: a PDF on the course portal, and TUTORIAL.md in your copy, where you can copy each command straight from the page. To see where you are heading, look at the finished example's site: https://codedev-david.github.io/learning-reviews-demo/
 - A free GitHub account, signed in, with a verified email address.
 - Git. On Windows, Git for Windows, which gives you **Git Bash**, as in Lab 1. On macOS or Linux, the Terminal. Git knows your name and email: `git config --global user.name` and `git config --global user.email` each print one line. If one prints nothing, set it, with the email of your GitHub account: `git config --global user.name "Your Name"` and `git config --global user.email "you@example.com"`.
 - **Node.js 22 or newer** (the LTS version from https://nodejs.org), for Part B and for checking your reviews before you push. Can't install it? You can still do the project: skip Part B and every `npm` command, and let the pipeline run the same checks for you.
